@@ -10,6 +10,8 @@ This repo is a web tool for analyzing memory dumps using the Volatility3 framewo
 
 From where you want to run the Docker container the default setup will create a data folder. This is where you can move or copy your memory images if you want to bypass the http upload method.
 
+![Example](example.png)
+
 ### **Build it**
 
 ```bash
