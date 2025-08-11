@@ -1,0 +1,42 @@
+{
+  "port": 80,
+  "baseURL": "",
+  "address": "",
+  "log": "stdout",
+  "database": "/database.db",
+  "root": "/srv/data",
+  "commands": {
+    "after_upload": [],
+    "before_save": [],
+    "after_save": []
+  },
+  "settings": {
+    "signup": false,
+    "createUserDir": false,
+    "defaults": {
+      "scope": ".",
+      "locale": "en",
+      "viewMode": "list",
+      "sorting": {
+        "by": "name",
+        "asc": false
+      },
+      "perm": {
+        "admin": false,
+        "execute": true,
+        "create": true,
+        "rename": true,
+        "modify": true,
+        "delete": true,
+        "share": true,
+        "download": true
+      },
+      "commands": []
+    }
+  },
+  "branding": {
+    "name": "Volatility3 File Browser",
+    "disableExternal": false,
+    "files": ""
+  }
+}

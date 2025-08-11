@@ -1,0 +1,173 @@
+services:
+  volatility-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: volatility3-web
+    ports:
+      - "8080:5000"
+    volumes:
+      # Mount data directory for persistent storage
+      - ./data:/data
+      # Mount for additional memory dumps (optional)
+      #- ./memory-dumps:/memory-dumps:ro
+    environment:
+      # Python environment variables
+      - PYTHONUNBUFFERED=1
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      # Logging configuration
+      - LOG_LEVEL=INFO
+      - VOLATILITY_LOG_LEVEL=INFO
+      # Application settings
+      - MAX_UPLOAD_SIZE=68719476736  # 64GB
+      - ALLOWED_EXTENSIONS=.dd,.raw,.mem,.dmp,.img,.vmem,.bin
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service=volatility-web"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.volatility.rule=Host(`volatility.localhost`)"
+      - "traefik.http.services.volatility.loadbalancer.server.port=5000"
+      - "com.docker.compose.service=volatility-web"
+    networks:
+      - volatility-network
+
+  # Optional: Add a file browser for easier management
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: volatility-filebrowser
+    ports:
+      - "8081:80"
+    volumes:
+      - ./data:/srv/data
+      - ./filebrowser.db:/database.db
+      - ./filebrowser-config.json:/config.json
+    environment:
+      - FB_DATABASE=/database.db
+      - FB_CONFIG=/config.json
+    restart: unless-stopped
+    profiles:
+      - filebrowser
+    networks:
+      - volatility-network
+    depends_on:
+      - volatility-web
+
+  # Optional: Log aggregation with ELK stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: volatility-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    profiles:
+      - logging
+    networks:
+      - volatility-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: volatility-logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/config:/usr/share/logstash/config
+    ports:
+      - "5044:5044"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    restart: unless-stopped
+    profiles:
+      - logging
+    networks:
+      - volatility-network
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: volatility-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    restart: unless-stopped
+    profiles:
+      - logging
+    networks:
+      - volatility-network
+    depends_on:
+      - elasticsearch
+
+  # Optional: Prometheus monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: volatility-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    networks:
+      - volatility-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: volatility-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    networks:
+      - volatility-network
+    depends_on:
+      - prometheus
+
+networks:
+  volatility-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
