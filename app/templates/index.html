@@ -60,6 +60,39 @@
                 
                 <div class="section">
                     <h3>🛠️ Available Commands</h3>
+                    
+                    <!-- Custom Command Input -->
+                    <div class="custom-command-section">
+                        <h4>🔧 Custom Command</h4>
+                        <p class="custom-command-description">
+                            Run custom Volatility commands with your own parameters. 
+                            Command prefix: <code>/opt/volatility-env/bin/vol -f [SELECTED_MEMORY_FILE]</code>
+                        </p>
+                        <div class="custom-command-input-group">
+                            <input 
+                                type="text" 
+                                id="customCommandInput" 
+                                placeholder="e.g., windows.hivelist or linux.pslist --pid 1234"
+                                class="custom-command-input"
+                            >
+                            <button 
+                                id="runCustomCommand" 
+                                class="btn btn-primary"
+                                onclick="runCustomCommand()"
+                            >
+                                ▶️ Run Custom Command
+                            </button>
+                        </div>
+                        <div class="custom-command-example">
+                            <small>
+                                <strong>Examples:</strong><br>
+                                • <code>windows.hivelist</code><br>
+                                • <code>windows.pslist --pid 1234</code><br>
+                                • <code>linux.bash.Bash</code>
+                            </small>
+                        </div>
+                    </div>
+                    
                     <div id="commandGrid" class="command-grid"></div>
                 </div>
                 

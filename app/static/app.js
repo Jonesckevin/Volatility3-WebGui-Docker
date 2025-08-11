@@ -356,6 +356,103 @@ async function collectArguments(command, pluginArgs) {
     });
 }
 
+// Custom Command Function
+async function runCustomCommand() {
+    const customCommandInput = document.getElementById("customCommandInput");
+    const memoryFile = document.getElementById("memorySelect").value;
+    
+    // Validate inputs
+    if (!memoryFile) {
+        alert("Please select a memory dump file first");
+        return;
+    }
+    
+    const customSuffix = customCommandInput.value.trim();
+    if (!customSuffix) {
+        alert("Please enter a command suffix (e.g., 'windows.hivelist' or 'linux.pslist --pid 1234')");
+        return;
+    }
+    
+    // Extract the command and arguments from the input
+    const parts = customSuffix.split(/\s+/);
+    const command = parts[0];
+    const args = {};
+    
+    // Parse command-line style arguments (--key value)
+    for (let i = 1; i < parts.length; i++) {
+        if (parts[i].startsWith('--')) {
+            const argName = parts[i].substring(2);
+            if (i + 1 < parts.length && !parts[i + 1].startsWith('--')) {
+                args[argName] = parts[i + 1];
+                i++; // Skip the value in next iteration
+            } else {
+                args[argName] = true; // Flag without value
+            }
+        }
+    }
+    
+    // Determine OS type based on command prefix or use selected OS
+    let osType = document.getElementById("osSelect").value;
+    if (command.startsWith('windows.')) {
+        osType = 'Windows';
+    } else if (command.startsWith('linux.')) {
+        osType = 'Linux';
+    } else if (command.startsWith('mac.')) {
+        osType = 'Mac';
+    }
+    
+    if (!osType) {
+        alert("Please select an operating system or use a command with OS prefix (e.g., 'windows.hivelist')");
+        return;
+    }
+    
+    try {
+        console.log(`[DEBUG] Running custom command: ${command} with args:`, args);
+        console.log(`[DEBUG] Memory file: ${memoryFile}, OS: ${osType}`);
+        
+        const response = await fetch("/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                memory_file: memoryFile,
+                os_type: osType,
+                command: command,
+                arguments: args
+            })
+        });
+        
+        const result = await response.json();
+        console.log(`[DEBUG] Custom command response:`, result);
+        
+        if (response.ok) {
+            currentTaskId = result.task_id;
+            console.log(`[DEBUG] Custom command started with ID: ${currentTaskId}`);
+            alert(`Custom command started successfully! Command: "${customSuffix}"\nCheck the Results tab for output when complete.`);
+            
+            // Clear the input after successful submission
+            customCommandInput.value = "";
+        } else {
+            console.error(`[ERROR] Failed to start custom command:`, result);
+            alert(`Failed to start custom command: ${result.error}`);
+        }
+    } catch (error) {
+        console.error(`[ERROR] Error running custom command:`, error);
+        alert(`Error running custom command: ${error.message}`);
+    }
+}
+
+// Add Enter key support for custom command input
+document.addEventListener('DOMContentLoaded', function() {
+    const customCommandInput = document.getElementById("customCommandInput");
+    if (customCommandInput) {
+        customCommandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                runCustomCommand();
+            }
+        });
+    }
+});
+
 // Task monitoring, execution status, and debug functions removed
 
 async function refreshResults() {
