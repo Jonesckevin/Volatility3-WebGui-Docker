@@ -5,30 +5,30 @@ let commands = {};
 // Initialize drag and drop when page loads
 function initializeDragAndDrop() {
     const uploadArea = document.getElementById("uploadArea");
-    
+
     // Add click handler for file selection
-    uploadArea.addEventListener("click", function(e) {
+    uploadArea.addEventListener("click", function (e) {
         // Only trigger if not dragging
         if (!uploadArea.classList.contains("dragging")) {
             document.getElementById("fileInput").click();
         }
     });
-    
+
     // Prevent default drag behaviors
     ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
         uploadArea.addEventListener(eventName, preventDefaults, false);
         document.body.addEventListener(eventName, preventDefaults, false);
     });
-    
+
     // Highlight drop area when item is dragged over it
     ["dragenter", "dragover"].forEach(eventName => {
         uploadArea.addEventListener(eventName, highlight, false);
     });
-    
+
     ["dragleave", "drop"].forEach(eventName => {
         uploadArea.addEventListener(eventName, unhighlight, false);
     });
-    
+
     // Handle dropped files
     uploadArea.addEventListener("drop", handleDrop, false);
 }
@@ -60,25 +60,25 @@ function handleDrop(e) {
     console.log("File(s) dropped");
     const dt = e.dataTransfer;
     const files = dt.files;
-    
+
     console.log("Number of files:", files.length);
-    
+
     if (files.length > 0) {
         const file = files[0];
         console.log("File name:", file.name, "Size:", file.size);
-        
+
         // Check file extension
         const allowedExtensions = [".dd", ".raw", ".mem", ".dmp", ".img", ".vmem", ".bin"];
         const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
-        
+
         console.log("File extension:", fileExtension);
-        
+
         if (allowedExtensions.includes(fileExtension)) {
             console.log("Valid file type, uploading...");
             uploadFileData(file);
         } else {
             console.log("Invalid file type");
-            document.getElementById("uploadStatus").innerHTML = 
+            document.getElementById("uploadStatus").innerHTML =
                 `<div class="status error">❌ Invalid file type "${fileExtension}". Supported: ${allowedExtensions.join(", ")}</div>`;
         }
     } else {
@@ -89,17 +89,17 @@ function handleDrop(e) {
 async function uploadFileData(file) {
     const formData = new FormData();
     formData.append("file", file);
-    
+
     document.getElementById("uploadStatus").innerHTML = `<div class="status running">⏳ Uploading ${file.name}...</div>`;
-    
+
     try {
         const response = await fetch("/upload", {
             method: "POST",
             body: formData
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             document.getElementById("uploadStatus").innerHTML = `<div class="status completed">✅ ${result.message}</div>`;
             refreshFiles();
@@ -114,10 +114,10 @@ async function uploadFileData(file) {
 function showTab(tabName) {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
-    
+
     event.target.classList.add("active");
     document.getElementById(tabName + "-tab").classList.remove("hidden");
-    
+
     if (tabName === "analyze") {
         refreshMemorySelect();
         // Live status updates removed
@@ -142,7 +142,7 @@ async function uploadFile() {
     const fileInput = document.getElementById("fileInput");
     const file = fileInput.files[0];
     if (!file) return;
-    
+
     await uploadFileData(file);
     fileInput.value = "";
 }
@@ -151,22 +151,22 @@ async function refreshFiles() {
     try {
         const response = await fetch("/files");
         const files = await response.json();
-        
+
         const fileList = document.getElementById("fileList");
         fileList.innerHTML = "";
-        
+
         // Filter to show only memory files in the upload section
         const memoryExtensions = ['.dd', '.raw', '.mem', '.dmp', '.img', '.vmem', '.bin'];
         const memoryFiles = files.filter(file => {
             const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
             return memoryExtensions.includes(extension);
         });
-        
+
         if (memoryFiles.length === 0) {
             fileList.innerHTML = "<p>No memory dump files found. Upload memory files with extensions: .dd, .raw, .mem, .dmp, .img, .vmem, .bin</p>";
             return;
         }
-        
+
         memoryFiles.forEach(file => {
             const fileItem = document.createElement("div");
             fileItem.className = "file-item";
@@ -191,17 +191,17 @@ async function refreshMemorySelect() {
     try {
         const response = await fetch("/files");
         const files = await response.json();
-        
+
         const select = document.getElementById("memorySelect");
         select.innerHTML = "<option value=''>Select memory dump...</option>";
-        
+
         files.filter(f => /\.(dd|raw|mem|dmp|img|vmem|bin)$/i.test(f.name))
-             .forEach(file => {
-                 const option = document.createElement("option");
-                 option.value = file.name;
-                 option.textContent = file.name;
-                 select.appendChild(option);
-             });
+            .forEach(file => {
+                const option = document.createElement("option");
+                option.value = file.name;
+                option.textContent = file.name;
+                select.appendChild(option);
+            });
     } catch (error) {
         console.error("Error refreshing memory select:", error);
     }
@@ -211,43 +211,52 @@ async function loadCommands() {
     const osType = document.getElementById("osSelect").value;
     if (!osType) {
         document.getElementById("commandGrid").innerHTML = "";
+        const ws = document.getElementById("windows-shortcuts");
+        if (ws) ws.classList.add("hidden");
         return;
     }
-    
+
     try {
         const response = await fetch("/commands");
         commands = await response.json();
-        
+
         const grid = document.getElementById("commandGrid");
         grid.innerHTML = "";
-        
+
         const osCommands = commands[osType] || {};
-        
+
+        // Toggle Windows shortcuts visibility
+        const ws = document.getElementById("windows-shortcuts");
+        if (ws) {
+            if (osType === 'Windows') ws.classList.remove('hidden');
+            else ws.classList.add('hidden');
+        }
+
         Object.keys(osCommands).forEach(category => {
             const categoryDiv = document.createElement("div");
             categoryDiv.className = "command-category";
-            
+
             const title = document.createElement("h4");
             title.textContent = category;
             categoryDiv.appendChild(title);
-            
+
             Object.keys(osCommands[category]).forEach(cmd => {
                 const button = document.createElement("button");
                 button.className = "command-btn btn";
-                
+
                 // Extract command name (e.g., "windows.cmdline.CmdLine" -> "CmdLine")
                 const commandName = cmd.split('.').pop();
                 button.textContent = commandName;
-                
+
                 // Set the full description as tooltip
                 const description = osCommands[category][cmd];
                 button.title = description;
-                
+
                 button.onclick = () => runCommand(cmd);
-                
+
                 categoryDiv.appendChild(button);
             });
-            
+
             grid.appendChild(categoryDiv);
         });
     } catch (error) {
@@ -255,10 +264,39 @@ async function loadCommands() {
     }
 }
 
+// Run Windows BitLocker helper
+async function runWindowsBitlocker() {
+    const memoryFile = document.getElementById("memorySelect").value;
+    const osType = document.getElementById("osSelect").value;
+    if (!memoryFile) {
+        alert("Please select a memory dump file first");
+        return;
+    }
+    if (osType !== 'Windows') {
+        alert("Please select Windows as the operating system to use this shortcut");
+        return;
+    }
+    try {
+        const response = await fetch('/windows-bitlocker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ memory_file: memoryFile })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            alert('BitLocker recovery started! Check the Results tab later for output. Any .fvek keys will appear in Results or be downloadable from /data.');
+        } else {
+            alert(`Failed to start BitLocker helper: ${result.error || response.status}`);
+        }
+    } catch (err) {
+        alert(`Error starting BitLocker helper: ${err.message}`);
+    }
+}
+
 async function runCommand(command) {
     const memoryFile = document.getElementById("memorySelect").value;
     const osType = document.getElementById("osSelect").value;
-    
+
     if (!memoryFile || !osType) {
         alert("Please select a memory dump and operating system");
         return;
@@ -268,20 +306,20 @@ async function runCommand(command) {
     try {
         const argsResponse = await fetch(`/plugin-args/${command}`);
         const pluginArgs = await argsResponse.json();
-        
-        let arguments = {};
-        
+
+        let argsPayload = {};
+
         // If plugin has arguments, show dialog to collect them
         if (Object.keys(pluginArgs).length > 0) {
             const argumentsCollected = await collectArguments(command, pluginArgs);
             if (argumentsCollected === null) {
                 return; // User cancelled
             }
-            arguments = argumentsCollected;
+            argsPayload = argumentsCollected;
         }
-        
+
         console.log(`[DEBUG] Starting command: ${command} for ${memoryFile} (${osType}) with args:`, arguments);
-        
+
         const response = await fetch("/run", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -289,13 +327,13 @@ async function runCommand(command) {
                 memory_file: memoryFile,
                 os_type: osType,
                 command: command,
-                arguments: arguments
+                arguments: argsPayload
             })
         });
-        
+
         const result = await response.json();
         console.log(`[DEBUG] Run command response:`, result);
-        
+
         if (response.ok) {
             currentTaskId = result.task_id;
             console.log(`[DEBUG] Task started with ID: ${currentTaskId}`);
@@ -334,9 +372,9 @@ async function collectArguments(command, pluginArgs) {
                 </form>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         window.submitArguments = () => {
             const formData = new FormData(document.getElementById('argumentForm'));
             const args = {};
@@ -348,7 +386,7 @@ async function collectArguments(command, pluginArgs) {
             document.body.removeChild(modal);
             resolve(args);
         };
-        
+
         window.cancelArguments = () => {
             document.body.removeChild(modal);
             resolve(null);
@@ -360,24 +398,24 @@ async function collectArguments(command, pluginArgs) {
 async function runCustomCommand() {
     const customCommandInput = document.getElementById("customCommandInput");
     const memoryFile = document.getElementById("memorySelect").value;
-    
+
     // Validate inputs
     if (!memoryFile) {
         alert("Please select a memory dump file first");
         return;
     }
-    
+
     const customSuffix = customCommandInput.value.trim();
     if (!customSuffix) {
         alert("Please enter a command suffix (e.g., 'windows.hivelist' or 'linux.pslist --pid 1234')");
         return;
     }
-    
+
     // Extract the command and arguments from the input
     const parts = customSuffix.split(/\s+/);
     const command = parts[0];
     const args = {};
-    
+
     // Parse command-line style arguments (--key value)
     for (let i = 1; i < parts.length; i++) {
         if (parts[i].startsWith('--')) {
@@ -390,7 +428,7 @@ async function runCustomCommand() {
             }
         }
     }
-    
+
     // Determine OS type based on command prefix or use selected OS
     let osType = document.getElementById("osSelect").value;
     if (command.startsWith('windows.')) {
@@ -400,16 +438,16 @@ async function runCustomCommand() {
     } else if (command.startsWith('mac.')) {
         osType = 'Mac';
     }
-    
+
     if (!osType) {
         alert("Please select an operating system or use a command with OS prefix (e.g., 'windows.hivelist')");
         return;
     }
-    
+
     try {
         console.log(`[DEBUG] Running custom command: ${command} with args:`, args);
         console.log(`[DEBUG] Memory file: ${memoryFile}, OS: ${osType}`);
-        
+
         const response = await fetch("/run", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -420,15 +458,15 @@ async function runCustomCommand() {
                 arguments: args
             })
         });
-        
+
         const result = await response.json();
         console.log(`[DEBUG] Custom command response:`, result);
-        
+
         if (response.ok) {
             currentTaskId = result.task_id;
             console.log(`[DEBUG] Custom command started with ID: ${currentTaskId}`);
             alert(`Custom command started successfully! Command: "${customSuffix}"\nCheck the Results tab for output when complete.`);
-            
+
             // Clear the input after successful submission
             customCommandInput.value = "";
         } else {
@@ -442,10 +480,10 @@ async function runCustomCommand() {
 }
 
 // Add Enter key support for custom command input
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const customCommandInput = document.getElementById("customCommandInput");
     if (customCommandInput) {
-        customCommandInput.addEventListener('keypress', function(e) {
+        customCommandInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 runCustomCommand();
             }
@@ -459,12 +497,13 @@ async function refreshResults() {
     try {
         const response = await fetch("/files");
         const files = await response.json();
-        
+
         const resultsList = document.getElementById("resultsList");
         resultsList.innerHTML = "";
-        
+
         const resultFiles = files.filter(f => f.name.startsWith("volatility_") && f.name.endsWith(".txt"));
-        
+        const keyFiles = files.filter(f => f.name.toLowerCase().endsWith('.fvek'));
+
         resultFiles.forEach(file => {
             const fileItem = document.createElement("div");
             fileItem.className = "file-item";
@@ -481,8 +520,25 @@ async function refreshResults() {
             `;
             resultsList.appendChild(fileItem);
         });
-        
-        if (resultFiles.length === 0) {
+
+        // List discovered FVEK key files
+        keyFiles.forEach(file => {
+            const fileItem = document.createElement("div");
+            fileItem.className = "file-item";
+            fileItem.innerHTML = `
+                <div>
+                    <strong>🔑 ${file.name}</strong><br>
+                    <small>${formatFileSize(file.size)} - ${new Date(file.modified).toLocaleString()}</small>
+                </div>
+                <div>
+                    <button class="btn btn-success" onclick="downloadFile('${file.name}')">📥 Download</button>
+                    <button class="btn btn-danger" onclick="deleteFile('${file.name}')">🗑️ Delete</button>
+                </div>
+            `;
+            resultsList.appendChild(fileItem);
+        });
+
+        if (resultFiles.length === 0 && keyFiles.length === 0) {
             resultsList.innerHTML = "<p>No analysis results found. Run some commands first!</p>";
         }
     } catch (error) {
@@ -496,10 +552,10 @@ async function viewTextFile(filename) {
         if (!response.ok) {
             throw new Error(`Failed to load file: ${response.status}`);
         }
-        
+
         const content = await response.text();
         showTextReader(filename, content);
-        
+
     } catch (error) {
         alert(`Error loading file: ${error.message}`);
     }
@@ -522,19 +578,19 @@ function showTextReader(filename, content) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Add click outside to close
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeTextReader();
         }
     });
-    
+
     // Store reference for closing
     window.currentTextReader = modal;
-    
+
     window.closeTextReader = () => {
         if (window.currentTextReader) {
             document.body.removeChild(window.currentTextReader);
@@ -555,11 +611,11 @@ function downloadFile(filename) {
 
 async function deleteFile(filename) {
     if (!confirm(`Delete ${filename}?`)) return;
-    
+
     try {
         const response = await fetch(`/delete/${filename}`, { method: "DELETE" });
         const result = await response.json();
-        
+
         if (response.ok) {
             refreshFiles();
             refreshResults();

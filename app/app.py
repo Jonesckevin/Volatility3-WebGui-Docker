@@ -36,7 +36,7 @@ app.logger.setLevel(logging.INFO)
 logger.info("=== Volatility3 Web Interface Starting ===")
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Flask application starting with debug mode")
-logger.info(f"Upload folder: {UPLOAD_FOLDER if 'UPLOAD_FOLDER' in globals() else '/data'}")
+logger.info("Upload folder: /data")
 logger.info("==========================================")
 
 UPLOAD_FOLDER = "/data"
@@ -412,6 +412,106 @@ def run_volatility_command(memory_file, os_type, command, arguments, task_id):
 def index():
     logger.info("Home page accessed")
     return render_template("index.html")
+
+def run_windows_bitlocker_helper(memory_file, task_id):
+    """Run windows.bitlocker with dislocker and collect .fvek files into /data"""
+    try:
+        logger.info(f"Starting BitLocker helper task {task_id} for {memory_file}")
+        running_tasks[task_id] = {
+            "id": task_id,
+            "memory_file": os.path.basename(memory_file),
+            "os_type": "Windows",
+            "command": "windows.bitlocker",
+            "arguments": {"tags": "FVEc Cngb None", "dislocker": True},
+            "status": "running",
+            "created": datetime.now().isoformat(),
+            "start_time": datetime.now().isoformat()
+        }
+
+        vol_cmd = "/opt/volatility-env/bin/vol"
+        full_cmd = f"{vol_cmd} -f {memory_file} -vvv windows.bitlocker --tags FVEc Cngb None --dislocker"
+        logger.info(f"Executing BitLocker command: {full_cmd}")
+        running_tasks[task_id]["command_executed"] = full_cmd
+
+        # Execute with cwd=/data so outputs land in /data
+        result = subprocess.run(full_cmd, shell=True, cwd=UPLOAD_FOLDER, capture_output=True, text=True, timeout=7200)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        memname = os.path.basename(memory_file).split('.')[0]
+        output_file = os.path.join(UPLOAD_FOLDER, f"volatility_windows_bitlocker_{memname}_{timestamp}.txt")
+        with open(output_file, 'w') as f:
+            f.write(f"Command: {full_cmd}\n")
+            f.write(f"Execution Time: {datetime.now()}\n")
+            f.write(f"Return Code: {result.returncode}\n")
+            f.write("=" * 50 + "\n")
+            f.write(result.stdout or "")
+            if result.stderr:
+                f.write("\nERRORS:\n")
+                f.write(result.stderr)
+
+        # Move any *.fvek files found under /data subpaths to the root /data
+        moved = []
+        for root, dirs, files in os.walk(UPLOAD_FOLDER):
+            for fname in files:
+                if fname.lower().endswith('.fvek'):
+                    src = os.path.join(root, fname)
+                    dest = os.path.join(UPLOAD_FOLDER, fname)
+                    try:
+                        if os.path.abspath(src) != os.path.abspath(dest):
+                            if os.path.exists(dest):
+                                # Avoid overwrite; add timestamp suffix
+                                base, ext = os.path.splitext(fname)
+                                dest = os.path.join(UPLOAD_FOLDER, f"{base}_{timestamp}{ext}")
+                            os.replace(src, dest)
+                        moved.append(os.path.basename(dest))
+                    except Exception as me:
+                        error_logger.error(f"Failed to move {src} -> {dest}: {me}")
+
+        status = "completed" if result.returncode == 0 else "failed"
+        running_tasks[task_id].update({
+            "status": status,
+            "end_time": datetime.now().isoformat(),
+            "output": result.stdout,
+            "error": result.stderr,
+            "output_file": output_file,
+            "return_code": result.returncode,
+            "moved_keys": moved
+        })
+        logger.info(f"BitLocker helper task {task_id} finished with status {status}; keys moved: {moved}")
+    except Exception as e:
+        error_logger.error(f"BitLocker helper task {task_id} error: {e}")
+        running_tasks[task_id] = running_tasks.get(task_id, {})
+        running_tasks[task_id].update({
+            "status": "error",
+            "end_time": datetime.now().isoformat(),
+            "error": str(e)
+        })
+
+@app.route("/windows-bitlocker", methods=["POST"])
+def windows_bitlocker():
+    data = request.json or {}
+    memory_file = data.get("memory_file")
+    if not memory_file:
+        return jsonify({"error": "memory_file is required"}), 400
+    full_path = os.path.join(UPLOAD_FOLDER, memory_file)
+    if not os.path.exists(full_path):
+        return jsonify({"error": "Memory file not found"}), 404
+
+    task_id = f"{int(time.time())}_windows_bitlocker"
+    # Initialize record
+    running_tasks[task_id] = {
+        "id": task_id,
+        "memory_file": memory_file,
+        "os_type": "Windows",
+        "command": "windows.bitlocker_helper",
+        "arguments": {"tags": "FVEc Cngb None", "dislocker": True},
+        "status": "queued",
+        "created": datetime.now().isoformat()
+    }
+    thread = threading.Thread(target=run_windows_bitlocker_helper, args=(full_path, task_id))
+    thread.daemon = True
+    thread.start()
+    return jsonify({"task_id": task_id, "status": "started"})
 
 @app.route("/upload", methods=["POST"])
 def upload_file():

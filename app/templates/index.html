@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volatility3 Web Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>Volatility3 Web GUI</h1>
             <p>Memory Analysis Tool - Upload, Analyze, Download</p>
         </div>
-        
+
         <div class="content">
             <!-- Tabs -->
             <div class="tabs">
@@ -21,7 +23,7 @@
                 <div class="tab" onclick="showTab('results')">📊 Results</div>
                 <div class="tab" onclick="showTab('help')">📖 Help</div>
             </div>
-            
+
             <!-- Upload Tab -->
             <div id="upload-tab" class="tab-content">
                 <div class="section">
@@ -29,25 +31,26 @@
                     <div class="upload-area" id="uploadArea">
                         <p class="upload-text">Click here or drag and drop memory dump files</p>
                         <p class="upload-subtext">Supported formats: .dd, .raw, .mem, .dmp, .img, .vmem, .bin</p>
-                        <input type="file" id="fileInput" class="hidden" accept=".dd,.raw,.mem,.dmp,.img,.vmem,.bin" onchange="uploadFile()">
+                        <input type="file" id="fileInput" class="hidden" accept=".dd,.raw,.mem,.dmp,.img,.vmem,.bin"
+                            onchange="uploadFile()">
                     </div>
                     <div id="uploadStatus"></div>
                 </div>
-                
+
                 <div class="section">
                     <h3>📋 Uploaded Files</h3>
                     <button class="btn btn-primary" onclick="refreshFiles()">🔄 Refresh</button>
                     <div id="fileList" class="file-list"></div>
                 </div>
             </div>
-            
+
             <!-- Analysis Tab -->
             <div id="analyze-tab" class="tab-content hidden">
                 <div class="section">
                     <h3>⚙️ Analysis Configuration</h3>
                     <label>Select Memory Dump:</label>
                     <select id="memorySelect"></select>
-                    
+
                     <label>Operating System:</label>
                     <select id="osSelect" onchange="loadCommands()">
                         <option value="">Select OS...</option>
@@ -56,30 +59,36 @@
                         <option value="Linux">Linux</option>
                         <option value="Mac">Mac</option>
                     </select>
+
+                    <div id="windows-shortcuts" class="special-actions hidden">
+                        <h4>🔑 Windows Analysis Shortcuts</h4>
+                        <p class="custom-command-description">
+                            BitLocker recovery helper: runs <code>windows.bitlocker</code> with dislocker and collects
+                            FVEK keys.
+                        </p>
+                        <button class="btn btn-primary" onclick="runWindowsBitlocker()">▶️ BitLocker Recovery
+                            (FVEK)</button>
+                        <small style="display:block;margin-top:6px;opacity:.8;">Executes:
+                            <code>/opt/volatility-env/bin/vol -f [file] -vvv windows.bitlocker --tags FVEc Cngb None --dislocker</code>.
+                            Any <code>.fvek</code> keys are saved to /data.</small>
+                    </div>
                 </div>
-                
+
                 <div class="section">
                     <h3>🛠️ Available Commands</h3>
-                    
+
                     <!-- Custom Command Input -->
                     <div class="custom-command-section">
                         <h4>🔧 Custom Command</h4>
                         <p class="custom-command-description">
-                            Run custom Volatility commands with your own parameters. 
+                            Run custom Volatility commands with your own parameters.
                             Command prefix: <code>/opt/volatility-env/bin/vol -f [SELECTED_MEMORY_FILE]</code>
                         </p>
                         <div class="custom-command-input-group">
-                            <input 
-                                type="text" 
-                                id="customCommandInput" 
+                            <input type="text" id="customCommandInput"
                                 placeholder="e.g., windows.hivelist or linux.pslist --pid 1234"
-                                class="custom-command-input"
-                            >
-                            <button 
-                                id="runCustomCommand" 
-                                class="btn btn-primary"
-                                onclick="runCustomCommand()"
-                            >
+                                class="custom-command-input">
+                            <button id="runCustomCommand" class="btn btn-primary" onclick="runCustomCommand()">
                                 ▶️ Run Custom Command
                             </button>
                         </div>
@@ -92,13 +101,13 @@
                             </small>
                         </div>
                     </div>
-                    
+
                     <div id="commandGrid" class="command-grid"></div>
                 </div>
-                
+
                 <!-- Execution Status and Live Status sections removed -->
             </div>
-            
+
             <!-- Results Tab -->
             <div id="results-tab" class="tab-content hidden">
                 <div class="section">
@@ -107,22 +116,23 @@
                     <div id="resultsList"></div>
                 </div>
             </div>
-            
+
             <!-- Help Tab -->
             <div id="help-tab" class="tab-content hidden">
                 <div class="section">
                     <h3>Volatility3 Documentation</h3>
-                    <p>Access the complete Volatility3 documentation from ReadTheDocs for detailed plugin information and usage examples.</p>
+                    <p>Access the complete Volatility3 documentation from ReadTheDocs for detailed plugin information
+                        and usage examples.</p>
                     <div class="help-controls">
                         <button class="btn btn-primary" onclick="openHelpInNewTab()">📚 Open Documentation</button>
                         <p style="margin-top: 15px; color: #c084fc; font-style: italic;">
-                            
+
                         </p>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Footer -->
         <footer class="footer" id="dynamicFooter">
             <!-- Footer content will be generated by JavaScript -->
@@ -135,7 +145,7 @@
         function createFooter() {
             const footer = document.getElementById('dynamicFooter');
             const currentYear = new Date().getFullYear();
-            
+
             footer.innerHTML = `
                 <div class="footer-content">
                     <div class="footer-links">
@@ -157,9 +167,10 @@
                 </div>
             `;
         }
-        
+
         // Initialize footer when page loads
         document.addEventListener('DOMContentLoaded', createFooter);
     </script>
 </body>
+
 </html>

@@ -48,6 +48,10 @@ RUN ls -la /opt/volatility-env/bin/ | grep -i vol
 # Download and extract Volatility3 documentation
 RUN mkdir -p /app/static/help
 RUN wget -q https://volatility3.readthedocs.io/_/downloads/en/latest/htmlzip/ -O /tmp/volatility_docs.zip
+RUN wget -O /tmp/bitlocker.py https://raw.githubusercontent.com/lorelyai/volatility3-bitlocker/main/bitlocker.py
+RUN mkdir -p /opt/volatility-env/lib/python3.13/site-packages/volatility3/framework/plugins/
+RUN cp /tmp/bitlocker.py /opt/volatility-env/lib/python3.13/site-packages/volatility3/framework/plugins/windows/
+RUN rm /tmp/bitlocker.py
 
 # Extract and organize documentation
 RUN unzip -q /tmp/volatility_docs.zip -d /tmp/help_extract
